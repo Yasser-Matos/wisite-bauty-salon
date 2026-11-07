@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beauty Salon - Administración</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- =============== PANTALLA DE LOGIN =============== -->
+  <div id="login" class="login-box">
+    <div class="card">
+      <div class="logo" style="margin-bottom:10px">✿ BEAUTY <span>SALON</span></div>
+      <h2>Acceso administrador</h2>
+      <label for="usuario">Usuario</label>
+      <input id="usuario" autocomplete="username">
+      <label for="clave">Contraseña</label>
+      <input id="clave" type="password" autocomplete="current-password">
+      <div class="mt"><button class="btn big" id="entrar">Entrar</button></div>
+      <p class="msg-err" id="loginErr"></p>
+      <p class="sub" style="font-size:12px;margin-top:10px"><a href="index.html">← Volver a reservas</a></p>
+    </div>
+  </div>
+
+  <!-- =============== PANEL (se muestra después de entrar) =============== -->
+  <div id="app" class="layout hide">
+
+    <!-- MENÚ LATERAL: cada botón abre una sección (data-v = nombre de la sección) -->
+    <aside class="side">
+      <div class="logo">✿ BEAUTY <span>SALON</span></div>
+      <button class="nav on" data-v="dashboard">Dashboard</button>
+      <button class="nav" data-v="citas">Citas</button>
+      <button class="nav" data-v="clientes">Clientes</button>
+      <button class="nav" data-v="gastos">Gastos</button>
+      <button class="nav" data-v="servicios">Servicios</button>
+      <button class="nav" data-v="barberos">Profesionales</button>
+      <div class="spacer"></div>
+      <button class="nav" id="salir">Cerrar sesión</button>
+    </aside>
+
+    <main class="main">
+      <div id="rolInfo" class="msg-ok hide" style="margin:0 0 14px"></div>
+
+      <!-- ========== SECCIÓN 1: DASHBOARD (la pantalla principal) ========== -->
+      <section id="v-dashboard">
+        <div class="head"><h1>Dashboard</h1><span class="sub" id="fechaHoy"></span></div>
+
+        <!-- Fila 1: citas y clientes -->
+        <div class="grid g4" id="kpis1"></div>
+        <!-- Fila 2: dinero del mes -->
+        <div class="grid g4 mt" id="kpis2"></div>
+
+        <div class="grid g2 mt">
+          <div class="card"><h2>Resumen</h2><div id="resumen"></div></div>
+          <div class="card"><h2>Ingresos (últimos 7 días)</h2><div id="grafica"></div></div>
+          <div class="card"><h2>Servicios más solicitados</h2><div id="top"></div></div>
+          <div class="card"><h2>Citas por estado</h2>
+            <div class="donutwrap"><div id="dona"></div><div class="legend" id="leyenda"></div></div>
+          </div>
+        </div>
+
+        <div class="card mt"><h2>Próximas citas de hoy</h2><div id="proximas"></div></div>
+      </section>
+
+      <!-- ========== SECCIÓN 2: CITAS ========== -->
+      <section id="v-citas" class="hide">
+        <div class="head">
+          <h1>Citas</h1>
+          <select id="filtro" style="width:auto">
+            <option value="hoy">Hoy</option>
+            <option value="manana">Mañana</option>
+            <option value="todas">Todas</option>
+          </select>
+        </div>
+        <!-- Cartel que dice si al cliente le llegó el aviso al confirmar su cita -->
+        <div id="avisoCitas" class="hide" role="status" aria-live="polite"></div>
+        <div class="card tablewrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Profesional</th><th>Precio</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="tCitas"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== SECCIÓN 3: CLIENTES ========== -->
+      <section id="v-clientes" class="hide">
+        <div class="head"><h1>Clientes</h1></div>
+        <div class="card tablewrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Teléfono</th><th>Citas</th><th>Total gastado</th><th>Cliente desde</th></tr></thead>
+            <tbody id="tClientes"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== SECCIÓN 4: GASTOS (control de gasto) ========== -->
+      <section id="v-gastos" class="hide">
+        <div class="head"><h1>Control de gastos</h1></div>
+        <div class="grid g4" id="kpisGastos"></div>
+        <div class="grid g2 mt">
+          <div class="card solo-admin">
+            <h2>Registrar gasto</h2>
+            <label for="gConcepto">Concepto</label><input id="gConcepto" placeholder="Ej: Compra de productos">
+            <label for="gMonto">Monto</label><input id="gMonto" type="number" min="0" step="0.01">
+            <label for="gFecha">Fecha</label><input id="gFecha" type="date">
+            <div class="mt"><button class="btn big" id="gAgregar">Agregar gasto</button></div>
+            <p class="msg-err" id="gErr"></p>
+          </div>
+          <div class="card tablewrap">
+            <h2>Gastos recientes</h2>
+            <table>
+              <thead><tr><th>Fecha</th><th>Concepto</th><th>Monto</th><th></th></tr></thead>
+              <tbody id="tGastos"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SECCIÓN 5: SERVICIOS (precios) ========== -->
+      <section id="v-servicios" class="hide">
+        <div class="head"><h1>Servicios y precios</h1></div>
+        <div class="grid g2">
+          <div class="card tablewrap">
+            <table>
+              <thead><tr><th>Servicio</th><th>Precio</th><th>Visible</th><th></th></tr></thead>
+              <tbody id="tServicios"></tbody>
+            </table>
+          </div>
+          <div class="card solo-admin">
+            <h2>Nuevo servicio</h2>
+            <label for="sNombre">Nombre</label><input id="sNombre">
+            <label for="sPrecio">Precio</label><input id="sPrecio" type="number" min="0">
+            <div class="mt"><button class="btn big" id="sAgregar">Agregar servicio</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SECCIÓN 6: PROFESIONALES ========== -->
+      <section id="v-barberos" class="hide">
+        <div class="head"><h1>Profesionales</h1></div>
+        <div class="grid g2">
+          <div class="card tablewrap">
+            <table>
+              <thead><tr><th>Nombre</th><th>Estado</th><th>Días que trabaja</th><th>Horario</th><th></th></tr></thead>
+              <tbody id="tBarberos"></tbody>
+            </table>
+          </div>
+          <div class="card solo-admin">
+            <h2>Nueva profesional</h2>
+            <label for="bNombre">Nombre</label><input id="bNombre">
+            <div class="mt"><button class="btn big" id="bAgregar">Agregar profesional</button></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
