@@ -1,0 +1,8 @@
+FOTOS DE TUS TRABAJOS
+---------------------
+Pon aquí tus fotos (formato .jpg, .jpeg, .png o .webp) y aparecerán solas en la página de inicio, en la sección "Nuestros trabajos".
+- Se muestran por orden de nombre: 01.jpg, 02.jpg, 03.jpg...
+- Que cada foto pese menos de 500 KB (si no, la página carga lenta). Puedes reducirlas gratis en squoosh.app.
+- Mejor fotos cuadradas o verticales y bien iluminadas.
+- Después de agregar o borrar fotos, sube los cambios a GitHub (Commit y Push) y Railway las actualiza.
+Este archivo LEEME.txt no se muestra a las clientas; puedes dejarlo.
