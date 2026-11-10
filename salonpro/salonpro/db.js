@@ -8,8 +8,9 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 require('dotenv').config();
 
-// DB_PATH (opcional) permite guardar la base de datos en otra ruta, por ejemplo el disco de Railway
-const db = new Database(process.env.DB_PATH || path.join(__dirname, 'salonpro.db'));
+// DB_PATH (opcional, ver rutas.js) permite guardar la base de datos en otra ruta, por ejemplo el disco de Railway
+const { DB_FILE } = require('./rutas');   // dónde está la base de datos (variable DB_PATH en Railway)
+const db = new Database(DB_FILE);
 db.pragma('journal_mode = WAL');   // más rápido y seguro
 db.pragma('foreign_keys = ON');    // respeta las relaciones entre tablas
 
@@ -117,28 +118,69 @@ db.exec(`
   );
 `);
 
+// ---------- NUEVAS FUNCIONES: duración, recordatorios, fotos, reseñas y promociones ----------
+// (Si la base de datos ya existía, estas columnas y tablas se agregan solas al arrancar.)
+const tieneCol = (tabla, col) => db.prepare(`PRAGMA table_info(${tabla})`).all().some((c) => c.name === col);
+// Cada servicio dura "duration_min" minutos (por defecto 60). La cita guarda "duration" = suma de sus servicios.
+if (!tieneCol('services', 'duration_min')) db.exec('ALTER TABLE services ADD COLUMN duration_min INTEGER NOT NULL DEFAULT 60');
+if (!tieneCol('appointments', 'duration')) db.exec('ALTER TABLE appointments ADD COLUMN duration INTEGER NOT NULL DEFAULT 60');
+// reminded = 1 cuando ya se envió el recordatorio de un día antes
+if (!tieneCol('appointments', 'reminded')) db.exec('ALTER TABLE appointments ADD COLUMN reminded INTEGER NOT NULL DEFAULT 0');
+
+db.exec(`
+  -- Fotos de trabajos subidas desde el panel (el archivo está en la carpeta de fotos; aquí solo su nombre)
+  CREATE TABLE IF NOT EXISTS photos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename   TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  );
+
+  -- Reseñas de clientas. Solo se puede dejar una por cita COMPLETADA.
+  -- status: pendiente (esperando que la apruebes) | publicada (se ve en la página de inicio) | oculta
+  CREATE TABLE IF NOT EXISTS reviews (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    appointment_id INTEGER NOT NULL UNIQUE REFERENCES appointments(id) ON DELETE CASCADE,
+    name           TEXT NOT NULL,
+    rating         INTEGER NOT NULL,
+    text           TEXT NOT NULL DEFAULT '',
+    status         TEXT NOT NULL DEFAULT 'pendiente',
+    created_at     TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  );
+
+  -- Promociones y paquetes que se muestran en la página de inicio
+  CREATE TABLE IF NOT EXISTS promotions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    price_text  TEXT NOT NULL DEFAULT '',     -- texto libre: "RD$ 1,200" o "20% de descuento"
+    active      INTEGER NOT NULL DEFAULT 1,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  );
+`);
+
 // ---------- DATOS INICIALES ----------
 // MODIFICAR AQUÍ: servicios y profesionales que se crean la primera vez.
 // (Después, cámbialos desde el panel: secciones Servicios y Profesionales.)
 if (db.prepare('SELECT COUNT(*) n FROM services').get().n === 0) {
-  const ins = db.prepare('INSERT INTO services(name, price) VALUES (?, ?)');
+  const ins = db.prepare('INSERT INTO services(name, price, duration_min) VALUES (?, ?, ?)');
   [
-    ['Manicure', 500],
-    ['Pedicure', 700],
-    ['Uñas acrílicas', 1500],
-    ['Uñas en gel', 1200],
-    ['Diseño de uñas', 300],
-    ['Depilación de cejas', 300],
-    ['Depilación facial', 400],
-    ['Depilación de piernas', 1200],
-    ['Depilación de axilas', 350],
-    ['Pestañas', 1800],
-    ['Corte de cabello', 800],
-    ['Peinado', 700],
-    ['Tinte / Color', 2500],
-    ['Keratina / Alisado', 3500],
-    ['Maquillaje', 1500],
-  ].forEach(([n, p]) => ins.run(n, p));
+    // [nombre, precio, duración en minutos]
+    ['Manicure', 500, 60],
+    ['Pedicure', 700, 60],
+    ['Uñas acrílicas', 1500, 120],
+    ['Uñas en gel', 1200, 90],
+    ['Diseño de uñas', 300, 30],
+    ['Depilación de cejas', 300, 30],
+    ['Depilación facial', 400, 30],
+    ['Depilación de piernas', 1200, 60],
+    ['Depilación de axilas', 350, 30],
+    ['Pestañas', 1800, 120],
+    ['Corte de cabello', 800, 60],
+    ['Peinado', 700, 60],
+    ['Tinte / Color', 2500, 120],
+    ['Keratina / Alisado', 3500, 180],
+    ['Maquillaje', 1500, 60],
+  ].forEach(([n, p, d]) => ins.run(n, p, d));
 }
 if (db.prepare('SELECT COUNT(*) n FROM barbers').get().n === 0) {
   const ins = db.prepare('INSERT INTO barbers(name) VALUES (?)');

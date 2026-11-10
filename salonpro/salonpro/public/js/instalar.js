@@ -1,5 +1,5 @@
 // =====================================================
-// instalar.js  ->  BOTÓN "INSTALAR APP" (lo usan index.html y cita.html)
+// instalar.js  ->  BOTÓN "INSTALAR APP" (lo usan index.html, reservar.html y cita.html)
 // Deja el ícono de tu salón en la pantalla de inicio del celular y abre la misma
 // página a pantalla completa. NO es una app de tienda: es tu página, instalada.
 //
@@ -9,7 +9,7 @@
 //   - Otros: si es Android pero el navegador no ofrece instalar solo, se explica dónde está en el menú.
 //   - Si la página ya está instalada (abierta desde el ícono), el aviso no sale.
 //   - Si el cliente lo cierra con la ✕, no vuelve a salir en 7 días.
-// PARA CAMBIAR LOS TEXTOS: edita PASOS aquí abajo y el texto del aviso en index.html / cita.html.
+// PARA CAMBIAR LOS TEXTOS: edita PASOS aquí abajo y el texto del aviso en index.html / reservar.html / cita.html.
 // =====================================================
 const Instalar = (() => {
   const $ = (id) => document.getElementById(id);

@@ -4,11 +4,18 @@
 // gastos, servicios y barberos). Todas, menos /login, exigen token.
 // =====================================================
 const express = require('express');
+const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const requireAdmin = require('../middleware/auth');
 const notificar = require('../notificar');
+const limite = require('../limite');
+const respaldo = require('../respaldo');
+const { UPLOADS_DIR } = require('../rutas');
 const { JWT_SECRET, MONEDA } = require('../config');
 const { fechaLocal, horarioBarbero } = require('../utils');
 const router = express.Router();
@@ -20,10 +27,15 @@ const all = (sql, ...p) => db.prepare(sql).all(...p);
 // ---------- LOGIN (público) ----------
 router.post('/login', (req, res) => {
   const { usuario, clave } = req.body || {};
+  // Protección: después de 5 contraseñas incorrectas seguidas, se bloquea el acceso 15 minutos
+  const espera = limite.minutosBloqueado(req, usuario);
+  if (espera) return res.status(429).json({ error: `Demasiados intentos fallidos. Intenta de nuevo en ${espera} minuto${espera === 1 ? '' : 's'}.` });
   const admin = get('SELECT * FROM admins WHERE username = ?', String(usuario || ''));
   if (!admin || !bcrypt.compareSync(String(clave || ''), admin.password_hash)) {
+    limite.registrarFallo(req, usuario);
     return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
   }
+  limite.limpiarFallos(req, usuario);
   // El token dura 12 horas; después hay que volver a entrar.
   const token = jwt.sign({ id: admin.id, user: admin.username }, JWT_SECRET, { expiresIn: '12h' });
   res.json({ token, usuario: admin.username, role: admin.role });
@@ -106,7 +118,7 @@ router.get('/citas', (req, res) => {
   let where = '1=1', params = [];
   if (filtro === 'hoy') { where = 'a.date = ?'; params = [fechaLocal()]; }
   if (filtro === 'manana') { where = 'a.date = ?'; params = [fechaLocal(1)]; }
-  res.json(all(`SELECT a.id, a.date, a.time, a.status, a.price, c.name cliente, c.phone telefono,
+  res.json(all(`SELECT a.id, a.date, a.time, a.status, a.price, a.duration, c.name cliente, c.phone telefono,
                        COALESCE((SELECT group_concat(s2.name, ' + ') FROM appointment_services x JOIN services s2 ON s2.id = x.service_id WHERE x.appointment_id = a.id), s.name) servicio, b.name barbero,
                        (SELECT COUNT(*) FROM push_subs p WHERE p.appointment_id = a.id) avisos
                 FROM appointments a JOIN clients c ON c.id = a.client_id
@@ -176,24 +188,30 @@ router.delete('/gastos/:id', soloAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- SERVICIOS (editar precios, activar/desactivar) ----------
+// ---------- SERVICIOS (editar precios y duración, activar/desactivar) ----------
+// duracion = minutos que dura el servicio (entre 15 y 480). Define cuánto tiempo bloquea en la agenda.
+const leerDuracion = (v, defecto) => { if (v === undefined) return defecto; const n = Math.round(Number(v)); return n >= 15 && n <= 480 ? n : null; };
 router.get('/servicios', (req, res) => res.json(all('SELECT * FROM services ORDER BY id')));
 
 router.post('/servicios', soloAdmin, (req, res) => {
-  const { nombre, precio } = req.body || {};
-  if (!String(nombre || '').trim() || !(Number(precio) >= 0)) return res.status(400).json({ error: 'Datos inválidos' });
-  db.prepare('INSERT INTO services(name, price) VALUES (?, ?)').run(String(nombre).trim().slice(0, 80), Number(precio));
+  const { nombre, precio, duracion } = req.body || {};
+  const dur = leerDuracion(duracion, 60);
+  if (!String(nombre || '').trim() || !(Number(precio) >= 0) || dur === null) return res.status(400).json({ error: 'Datos inválidos (la duración va de 15 a 480 minutos).' });
+  db.prepare('INSERT INTO services(name, price, duration_min) VALUES (?, ?, ?)').run(String(nombre).trim().slice(0, 80), Number(precio), dur);
   res.status(201).json({ ok: true });
 });
 
 router.patch('/servicios/:id', soloAdmin, (req, res) => {
-  const { nombre, precio, activo } = req.body || {};
+  const { nombre, precio, activo, duracion } = req.body || {};
   const s = get('SELECT * FROM services WHERE id = ?', req.params.id);
   if (!s) return res.status(404).json({ error: 'No encontrado' });
-  db.prepare('UPDATE services SET name = ?, price = ?, active = ? WHERE id = ?').run(
+  const dur = leerDuracion(duracion, s.duration_min);
+  if (dur === null) return res.status(400).json({ error: 'La duración va de 15 a 480 minutos.' });
+  db.prepare('UPDATE services SET name = ?, price = ?, active = ?, duration_min = ? WHERE id = ?').run(
     nombre !== undefined ? String(nombre).trim().slice(0, 80) : s.name,
     precio !== undefined ? Number(precio) : s.price,
     activo !== undefined ? (activo ? 1 : 0) : s.active,
+    dur,
     s.id
   );
   res.json({ ok: true });
@@ -252,6 +270,115 @@ router.patch('/barberos/:id', soloAdmin, (req, res) => {
     b.id
   );
   res.json({ ok: true });
+});
+
+// =====================================================
+// FOTOS DE TRABAJOS (se suben desde el panel y se ven en la página de inicio)
+// La página reduce cada foto antes de enviarla. Aquí se vuelve a revisar: tipo real, tamaño y cantidad.
+// Los archivos se guardan en la carpeta de fotos del Volume (rutas.js), no en el código.
+// =====================================================
+const MAX_FOTOS = 60;
+const MAX_BYTES_FOTO = 1.5 * 1024 * 1024;
+
+// Detecta el tipo REAL de la imagen por sus primeros bytes (no se confía en lo que diga el navegador)
+function tipoImagen(b) {
+  if (b.length > 12 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpg';
+  if (b.length > 12 && b.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+  if (b.length > 12 && b.slice(0, 4).toString('latin1') === 'RIFF' && b.slice(8, 12).toString('latin1') === 'WEBP') return 'webp';
+  return null;
+}
+
+router.get('/fotos', (req, res) => {
+  res.json(all('SELECT id, filename, created_at FROM photos ORDER BY id DESC').map((f) => ({ id: f.id, src: '/fotos/' + encodeURIComponent(f.filename), fecha: f.created_at.slice(0, 10) })));
+});
+
+router.post('/fotos', soloAdmin, (req, res) => {
+  const m = /^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String((req.body || {}).imagen || ''));
+  if (!m) return res.status(400).json({ error: 'Imagen no válida. Usa fotos JPG, PNG o WEBP.' });
+  const bytes = Buffer.from(m[1], 'base64');
+  if (bytes.length > MAX_BYTES_FOTO) return res.status(413).json({ error: 'La foto pesa demasiado (máximo 1.5 MB).' });
+  const tipo = tipoImagen(bytes);
+  if (!tipo) return res.status(400).json({ error: 'El archivo no es una imagen válida.' });
+  if (get('SELECT COUNT(*) n FROM photos').n >= MAX_FOTOS) return res.status(409).json({ error: `Ya tienes ${MAX_FOTOS} fotos. Borra alguna para subir otra.` });
+  const nombre = crypto.randomBytes(12).toString('hex') + '.' + tipo;
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  fs.writeFileSync(path.join(UPLOADS_DIR, nombre), bytes);
+  db.prepare('INSERT INTO photos(filename) VALUES (?)').run(nombre);
+  res.status(201).json({ ok: true });
+});
+
+router.delete('/fotos/:id', soloAdmin, (req, res) => {
+  const f = get('SELECT * FROM photos WHERE id = ?', req.params.id);
+  if (!f) return res.status(404).json({ error: 'No encontrada' });
+  db.prepare('DELETE FROM photos WHERE id = ?').run(f.id);
+  try { fs.unlinkSync(path.join(UPLOADS_DIR, f.filename)); } catch (e) { /* el archivo ya no estaba */ }
+  res.json({ ok: true });
+});
+
+// =====================================================
+// PROMOCIONES Y PAQUETES (se ven en la página de inicio)
+// =====================================================
+router.get('/promociones', (req, res) => res.json(all('SELECT * FROM promotions ORDER BY id DESC')));
+
+router.post('/promociones', soloAdmin, (req, res) => {
+  const b = req.body || {};
+  const titulo = String(b.titulo || '').trim().slice(0, 80);
+  if (!titulo) return res.status(400).json({ error: 'Escribe un título para la promoción.' });
+  db.prepare('INSERT INTO promotions(title, description, price_text) VALUES (?,?,?)')
+    .run(titulo, String(b.descripcion || '').trim().slice(0, 300), String(b.precio || '').trim().slice(0, 60));
+  res.status(201).json({ ok: true });
+});
+
+router.patch('/promociones/:id', soloAdmin, (req, res) => {
+  const p = get('SELECT * FROM promotions WHERE id = ?', req.params.id);
+  if (!p) return res.status(404).json({ error: 'No encontrada' });
+  db.prepare('UPDATE promotions SET active = ? WHERE id = ?').run((req.body || {}).activo ? 1 : 0, p.id);
+  res.json({ ok: true });
+});
+
+router.delete('/promociones/:id', soloAdmin, (req, res) => {
+  db.prepare('DELETE FROM promotions WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// =====================================================
+// RESEÑAS (las clientas las escriben desde "Mi cita"; tú decides cuáles se publican)
+// =====================================================
+router.get('/resenas', (req, res) => {
+  res.json(all(`SELECT r.id, r.name, r.rating, r.text, r.status, substr(r.created_at,1,10) fecha
+                FROM reviews r ORDER BY CASE r.status WHEN 'pendiente' THEN 0 ELSE 1 END, r.id DESC LIMIT 200`));
+});
+
+router.patch('/resenas/:id', soloAdmin, (req, res) => {
+  const estado = (req.body || {}).status;
+  if (!['publicada', 'oculta', 'pendiente'].includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
+  if (!get('SELECT id FROM reviews WHERE id = ?', req.params.id)) return res.status(404).json({ error: 'No encontrada' });
+  db.prepare('UPDATE reviews SET status = ? WHERE id = ?').run(estado, req.params.id);
+  res.json({ ok: true });
+});
+
+router.delete('/resenas/:id', soloAdmin, (req, res) => {
+  db.prepare('DELETE FROM reviews WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// =====================================================
+// RESPALDO: descarga una copia completa de la base de datos (solo administrador)
+// =====================================================
+router.get('/respaldo', soloAdmin, (req, res) => {
+  const temporal = path.join(os.tmpdir(), 'respaldo-' + crypto.randomBytes(6).toString('hex') + '.db');
+  try {
+    respaldo.copiarA(temporal);
+    const datos = fs.readFileSync(temporal);
+    const d = new Date();
+    const nombre = `respaldo-salon-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.db`;
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombre}"`);
+    res.end(datos);
+  } catch (e) {
+    console.error('Error creando respaldo:', e.message);
+    res.status(500).json({ error: 'No se pudo crear el respaldo.' });
+  } finally { try { fs.unlinkSync(temporal); } catch (e) { /* no existía */ } }
 });
 
 module.exports = router;

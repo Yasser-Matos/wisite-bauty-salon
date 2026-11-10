@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mi cita - Beauty Salon</title>
   <meta name="theme-color" content="#140d12">
+  <meta name="robots" content="noindex">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -16,7 +17,7 @@
 <body>
   <div class="topbar">
     <div class="logo">✿ BEAUTY <span>SALON</span></div>
-    <a href="index.html" class="btn ghost sm" style="text-decoration:none">Reservar otra</a>
+    <a href="reservar.html" class="btn ghost sm" style="text-decoration:none">Reservar otra</a>
   </div>
 
   <div class="wrap" style="max-width:560px">
@@ -44,10 +45,15 @@
       <div class="card estado" id="estado" aria-live="polite"></div>
       <div class="card mt"><h2>Tu cita</h2><div id="detalles"></div></div>
       <div class="card mt hide" id="avisosBox"></div>
+      <!-- Cambiar o cancelar la cita (lo dibuja js/cita.js) -->
+      <div class="card mt hide" id="accionesBox"></div>
+      <!-- Reseña: aparece cuando la cita está completada -->
+      <div class="card mt hide" id="resenaBox"></div>
       <p class="sub mt" style="font-size:13px;text-align:center">Esta página se actualiza sola. Guarda este enlace para volver a verla.</p>
     </div>
   </div>
 
+  <script src="js/negocio.js"></script>
   <script src="js/instalar.js"></script>
   <script src="js/push.js"></script>
   <script src="js/cita.js"></script>

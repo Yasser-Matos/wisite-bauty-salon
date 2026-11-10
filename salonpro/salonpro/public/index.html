@@ -3,7 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beauty Salon - Reserva tu cita</title>
+  <title>Beauty Salon - Uñas, depilación, pestañas y más</title>
+  <meta name="description" content="Reserva tu cita en línea en Beauty Salon: uñas, depilación, pestañas, cabello y maquillaje.">
+  <!-- Vista previa al compartir el enlace (WhatsApp, Facebook...). El servidor cambia __BASE__ por tu dirección real. -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Beauty Salon - Reserva tu cita en línea">
+  <meta property="og:description" content="Uñas, depilación, pestañas, cabello y maquillaje. Elige tus servicios, profesional y hora sin llamar.">
+  <meta property="og:image" content="__BASE__/icons/icon-512.png">
+  <meta property="og:url" content="__BASE__/">
+  <meta name="twitter:card" content="summary">
   <meta name="theme-color" content="#140d12">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.png" type="image/png">
@@ -13,68 +21,104 @@
   <meta name="apple-mobile-web-app-title" content="Beauty Salon">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-  <!-- BARRA SUPERIOR: cambia el nombre de tu salón aquí (también en cita.html y admin.html) -->
+<body class="inicio">
+  <!-- BARRA SUPERIOR: el botón "Agendar cita" lleva a la página de reservas (reservar.html) -->
   <div class="topbar">
     <div class="logo">✿ BEAUTY <span>SALON</span></div>
-    <a href="admin.html" class="btn ghost sm" style="text-decoration:none">Admin</a>
+    <a href="reservar.html" class="btn sm" style="text-decoration:none">Agendar cita</a>
   </div>
 
   <div class="wrap">
-  <!-- AVISO "INSTALAR APP": lo muestra u oculta js/instalar.js. Para cambiar el texto, edítalo aquí. -->
-  <div id="instalarBox" class="instalar hide" role="region" aria-label="Instalar la app">
-    <div class="instalar-txt">
-      <b>📲 Instala la app en tu celular</b>
-      <span>Queda el ícono en tu pantalla de inicio y abres la página con un toque.</span>
-    </div>
-    <div class="instalar-acc">
-      <button class="btn sm" id="instalarBtn" type="button">Instalar app</button>
-      <button class="btn sm ghost" id="instalarCerrar" type="button" aria-label="Cerrar aviso">✕</button>
-    </div>
-    <div class="instalar-pasos sub hide" id="instalarPasos" aria-live="polite"></div>
-  </div>
-    <!-- TÍTULO PRINCIPAL -->
-    <div class="hero">
-      <h1>Reserva tu cita</h1>
-      <p class="sub">Elige tus servicios, profesional, fecha y hora. Sin llamadas.</p>
-    </div>
-
-    <div class="grid g2">
-      <!-- PASO 1: servicios (se cargan desde la base de datos) -->
-      <div class="card">
-        <h2>1. Servicios</h2>
-        <p class="sub" style="font-size:13px;margin:-6px 0 10px">Puedes elegir varios (ej: uñas + cejas).</p>
-        <div id="servicios"></div>
-        <div class="total" id="totalBox">Total: <b id="total">—</b></div>
+    <!-- AVISO "INSTALAR APP" (lo controla js/instalar.js) -->
+    <div id="instalarBox" class="instalar hide" role="region" aria-label="Instalar la app">
+      <div class="instalar-txt">
+        <b>📲 Instala la app en tu celular</b>
+        <span>Queda el ícono en tu pantalla de inicio y abres la página con un toque.</span>
       </div>
-
-      <!-- PASO 2: profesional, fecha, hora y datos del cliente -->
-      <div class="card">
-        <h2>2. Detalles</h2>
-        <label for="barbero">Profesional</label>
-        <select id="barbero"></select>
-        <p class="sub" id="horarioBarbero" style="font-size:13px;margin-top:6px"></p>
-
-        <label for="fecha">Fecha</label>
-        <input type="date" id="fecha">
-
-        <label>Hora disponible</label>
-        <div class="slots" id="horas"></div>
-
-        <label for="nombre">Tu nombre</label>
-        <input id="nombre" placeholder="Ej: Juan Pérez" maxlength="80">
-
-        <label for="telefono">Teléfono / WhatsApp</label>
-        <input id="telefono" type="tel" placeholder="809-000-0000" maxlength="30">
-
-        <div class="mt"><button class="btn big" id="reservar">Reservar cita</button></div>
-        <div id="resultado"></div>
+      <div class="instalar-acc">
+        <button class="btn sm" id="instalarBtn" type="button">Instalar app</button>
+        <button class="btn sm ghost" id="instalarCerrar" type="button" aria-label="Cerrar aviso">✕</button>
       </div>
+      <div class="instalar-pasos sub hide" id="instalarPasos" aria-live="polite"></div>
     </div>
+
+    <!-- PORTADA: nombre, eslogan, descripción y botones (textos en js/negocio.js) -->
+    <section class="hero portada">
+      <h1 id="pEslogan"></h1>
+      <p class="sub" id="pDescripcion"></p>
+      <div class="portada-botones">
+        <a href="reservar.html" class="btn big" style="text-decoration:none;text-align:center">Agendar cita</a>
+        <a href="#ubicacion" class="btn ghost big" style="text-decoration:none;text-align:center">Cómo llegar</a>
+      </div>
+      <div class="etiquetas" id="pDestacados"></div>
+    </section>
+
+    <!-- PROMOCIONES Y PAQUETES: se crean desde el panel (sección Promociones). Si no hay ninguna, no se muestra. -->
+    <section class="bloque hide" id="promos">
+      <h2>Promociones</h2>
+      <div class="promos" id="listaPromos"></div>
+    </section>
+
+    <!-- SERVICIOS: salen solos de la base de datos (los cambias desde el panel) -->
+    <section class="bloque" id="servicios">
+      <h2>Nuestros servicios</h2>
+      <div class="svc-grid" id="listaServicios"></div>
+    </section>
+
+    <!-- GALERÍA: las fotos se leen de la carpeta public/fotos -->
+    <section class="bloque" id="trabajos">
+      <h2>Nuestros trabajos</h2>
+      <div class="galeria" id="galeria"></div>
+    </section>
+
+    <!-- EQUIPO: salen solas de la base de datos -->
+    <section class="bloque" id="equipo">
+      <h2>Nuestro equipo</h2>
+      <div class="equipo" id="listaEquipo"></div>
+    </section>
+
+    <!-- RESEÑAS: las escriben las clientas desde "Mi cita" y tú las apruebas en el panel. Si no hay ninguna, no se muestra. -->
+    <section class="bloque hide" id="resenas">
+      <h2>Lo que dicen nuestras clientas</h2>
+      <p class="sub" id="resumenResenas"></p>
+      <div class="resenas" id="listaResenas"></div>
+    </section>
+
+    <!-- UBICACIÓN, HORARIO Y CONTACTO -->
+    <section class="bloque" id="ubicacion">
+      <h2>Dónde estamos</h2>
+      <div class="grid g2">
+        <div class="card" id="cInfo"></div>
+        <div class="card mapa" id="cMapa"></div>
+      </div>
+    </section>
+
+    <!-- LLAMADO FINAL -->
+    <section class="cierre">
+      <h2>¿Lista para consentirte?</h2>
+      <p class="sub">Reserva en menos de un minuto, sin llamadas.</p>
+      <a href="reservar.html" class="btn big" style="text-decoration:none;display:block;text-align:center;max-width:360px;margin:14px auto 0">Agendar cita</a>
+    </section>
+
+    <footer class="pie">
+      <span id="pPie"></span>
+      <a href="admin.html">Administración</a>
+    </footer>
   </div>
 
+  <!-- Botón fijo para agendar en el celular -->
+  <a href="reservar.html" class="btn flotante" style="text-decoration:none">Agendar cita</a>
+
+  <div class="lightbox hide" id="lightbox" role="dialog" aria-modal="true" aria-label="Foto ampliada">
+    <button type="button" class="lb-x" id="lbCerrar" aria-label="Cerrar">✕</button>
+    <button type="button" class="lb-n lb-prev" id="lbPrev" aria-label="Foto anterior">‹</button>
+    <img id="lbImg" alt="">
+    <button type="button" class="lb-n lb-next" id="lbNext" aria-label="Foto siguiente">›</button>
+  </div>
+
+  <script src="js/negocio.js"></script>
   <script src="js/instalar.js"></script>
   <script src="js/push.js"></script>
-  <script src="js/reservar.js"></script>
+  <script src="js/inicio.js"></script>
 </body>
 </html>

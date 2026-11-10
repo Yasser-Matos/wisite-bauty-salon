@@ -1,7 +1,7 @@
 // =====================================================
-// reservar.js  ->  LÓGICA DE LA PÁGINA DE RESERVAS (index.html)
+// reservar.js  ->  LÓGICA DE LA PÁGINA DE RESERVAS (reservar.html)
 // Pide servicios, profesionales y horas al servidor, y envía la cita.
-// Las horas que se muestran son las del horario de la profesional elegida.
+// Las horas que se muestran son las del horario de la profesional elegida y alcanzan para la duración de los servicios.
 // =====================================================
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -14,6 +14,17 @@ let servicios = [];
 let barberos = [];
 let seleccion = new Set();   // ids de los servicios elegidos (puede ser más de uno)
 let horaElegida = null;  // hora elegida
+
+// 90 -> "1 h 30 min"; 60 -> "1 h"; 45 -> "45 min"
+function formatoDur(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  return (h ? h + ' h' : '') + (h && m ? ' ' : '') + (m ? m + ' min' : '');
+}
+// Minutos que dura lo que la clienta eligió (suma de sus servicios). Sin elegir nada: 60.
+function duracionSeleccion() {
+  const t = servicios.filter((s) => seleccion.has(s.id)).reduce((a, s) => a + Number(s.duracion || 60), 0);
+  return t || 60;
+}
 
 // Convierte "13:30" en "1:30 PM"
 function formatoHora(t) {
@@ -31,7 +42,7 @@ function hoy() {
 function pintarServicios() {
   $('servicios').innerHTML = servicios.map((s) =>
     `<div class="svc ${seleccion.has(s.id) ? 'sel' : ''}" data-id="${s.id}" role="checkbox" aria-checked="${seleccion.has(s.id)}">
-       <span class="nom"><span class="chk">${seleccion.has(s.id) ? '✓' : ''}</span>${esc(s.name)}</span>
+       <span class="nom"><span class="chk">${seleccion.has(s.id) ? '✓' : ''}</span><span>${esc(s.name)}<br><small class="sub">${formatoDur(Number(s.duracion || 60))}</small></span></span>
        <span class="price">${MONEDA} ${Number(s.price).toLocaleString('es-DO')}</span>
      </div>`).join('');
   document.querySelectorAll('.svc').forEach((el) => {
@@ -39,11 +50,14 @@ function pintarServicios() {
       const id = Number(el.dataset.id);
       if (seleccion.has(id)) seleccion.delete(id); else seleccion.add(id);
       pintarServicios();
+      // Cambió la duración total: la hora elegida puede ya no servir, y las horas libres cambian
+      horaElegida = null; $('resultado').innerHTML = ''; cargarHoras();
     };
   });
   // Total = suma de los precios de los servicios elegidos
   const total = servicios.filter((s) => seleccion.has(s.id)).reduce((t, s) => t + Number(s.price), 0);
   $('total').textContent = seleccion.size ? `${MONEDA} ${total.toLocaleString('es-DO')}` : '—';
+  $('duracionTxt').textContent = seleccion.size ? `Duración total: ${formatoDur(duracionSeleccion())}. Las horas que ves ya tienen en cuenta ese tiempo.` : '';
 }
 
 // ---------- Texto con el horario de la profesional elegida ----------
@@ -60,7 +74,7 @@ async function cargarHoras(avisarSiSeOcupo) {
   if (!fecha || !barbero) return;
   let horas;
   try {
-    const r = await fetch(`/api/horas?fecha=${encodeURIComponent(fecha)}&barbero_id=${encodeURIComponent(barbero)}`);
+    const r = await fetch(`/api/horas?fecha=${encodeURIComponent(fecha)}&barbero_id=${encodeURIComponent(barbero)}&duracion=${duracionSeleccion()}`);
     if (!r.ok) return;
     horas = await r.json();
   } catch (e) { return; }   // sin internet: se deja lo que había
@@ -138,7 +152,7 @@ $('reservar').onclick = async () => {
     const r = await fetch('/api/citas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'No se pudo reservar');
-    out.innerHTML = `<div class="msg-ok">✅ ¡Cita reservada!<br>${esc(j.servicio)} con ${esc(j.barbero)}<br>Total: ${MONEDA} ${Number(j.total).toLocaleString('es-DO')}<br>${esc(j.fecha)} a las ${formatoHora(j.hora)}</div>`;
+    out.innerHTML = `<div class="msg-ok">✅ ¡Cita reservada!<br>${esc(j.servicio)} con ${esc(j.barbero)}<br>Total: ${MONEDA} ${Number(j.total).toLocaleString('es-DO')} · ${formatoDur(j.duracion)}<br>${esc(j.fecha)} a las ${formatoHora(j.hora)}</div>`;
     horaElegida = null; seleccion.clear(); pintarServicios(); $('nombre').value = ''; $('telefono').value = '';
     ofrecerAvisos(j);
   } catch (e) {
