@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
   <title>Beauty Salon - Administración</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -19,7 +20,7 @@
       <input id="clave" type="password" autocomplete="current-password">
       <div class="mt"><button class="btn big" id="entrar">Entrar</button></div>
       <p class="msg-err" id="loginErr"></p>
-      <p class="sub" style="font-size:12px;margin-top:10px"><a href="index.html">← Volver a reservas</a></p>
+      <p class="sub" style="font-size:12px;margin-top:10px"><a href="reservar.html">← Volver a reservas</a></p>
     </div>
   </div>
 
@@ -35,6 +36,10 @@
       <button class="nav" data-v="gastos">Gastos</button>
       <button class="nav" data-v="servicios">Servicios</button>
       <button class="nav" data-v="barberos">Profesionales</button>
+      <button class="nav" data-v="fotos">Fotos</button>
+      <button class="nav" data-v="promos">Promociones</button>
+      <button class="nav" data-v="resenas">Reseñas <span id="insigniaResenas" class="insignia hide"></span></button>
+      <button class="nav" data-v="respaldo">Respaldo</button>
       <div class="spacer"></div>
       <button class="nav" id="salir">Cerrar sesión</button>
     </aside>
@@ -123,7 +128,7 @@
         <div class="grid g2">
           <div class="card tablewrap">
             <table>
-              <thead><tr><th>Servicio</th><th>Precio</th><th>Visible</th><th></th></tr></thead>
+              <thead><tr><th>Servicio</th><th>Precio</th><th>Duración</th><th>Visible</th><th></th></tr></thead>
               <tbody id="tServicios"></tbody>
             </table>
           </div>
@@ -131,6 +136,8 @@
             <h2>Nuevo servicio</h2>
             <label for="sNombre">Nombre</label><input id="sNombre">
             <label for="sPrecio">Precio</label><input id="sPrecio" type="number" min="0">
+            <label for="sDur">Duración (minutos)</label><input id="sDur" type="number" min="15" max="480" step="15" value="60">
+            <p class="sub" style="font-size:12px;margin-top:6px">La duración bloquea ese tiempo en la agenda de la profesional (ej: uñas acrílicas 120).</p>
             <div class="mt"><button class="btn big" id="sAgregar">Agregar servicio</button></div>
           </div>
         </div>
@@ -151,6 +158,56 @@
             <label for="bNombre">Nombre</label><input id="bNombre">
             <div class="mt"><button class="btn big" id="bAgregar">Agregar profesional</button></div>
           </div>
+        </div>
+      </section>
+
+      <!-- ========== SECCIÓN 7: FOTOS DE TRABAJOS (se ven en la página de inicio) ========== -->
+      <section id="v-fotos" class="hide">
+        <div class="head"><h1>Fotos de trabajos</h1></div>
+        <div class="card solo-admin">
+          <h2>Subir fotos</h2>
+          <p class="sub" style="margin-bottom:10px">Elige una o varias fotos (hasta 10 a la vez). Se reducen solas para que la página cargue rápido.</p>
+          <input id="fArchivos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+          <p class="sub" id="fEstado" style="margin-top:8px" role="status"></p>
+        </div>
+        <div class="fotos-admin mt" id="gFotos"></div>
+      </section>
+
+      <!-- ========== SECCIÓN 8: PROMOCIONES Y PAQUETES ========== -->
+      <section id="v-promos" class="hide">
+        <div class="head"><h1>Promociones y paquetes</h1></div>
+        <div class="grid g2">
+          <div class="card tablewrap">
+            <table>
+              <thead><tr><th>Promoción</th><th>Precio / oferta</th><th>Visible</th><th></th></tr></thead>
+              <tbody id="tPromos"></tbody>
+            </table>
+          </div>
+          <div class="card solo-admin">
+            <h2>Nueva promoción</h2>
+            <label for="pTitulo">Título</label><input id="pTitulo" maxlength="80" placeholder="Ej: Combo uñas + cejas">
+            <label for="pDesc">Descripción</label><input id="pDesc" maxlength="300" placeholder="Ej: Manicure y diseño de cejas">
+            <label for="pPrecio">Precio u oferta</label><input id="pPrecio" maxlength="60" placeholder="Ej: RD$ 700 o 20% de descuento">
+            <div class="mt"><button class="btn big" id="pAgregar">Agregar promoción</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== SECCIÓN 9: RESEÑAS ========== -->
+      <section id="v-resenas" class="hide">
+        <div class="head"><h1>Reseñas de clientas</h1></div>
+        <p class="sub" style="margin-bottom:12px">Las clientas las escriben desde "Mi cita" cuando su cita está completada. Solo se ven en la página de inicio las que tú publiques.</p>
+        <div id="listaResenasAdmin"></div>
+      </section>
+
+      <!-- ========== SECCIÓN 10: RESPALDO ========== -->
+      <section id="v-respaldo" class="hide">
+        <div class="head"><h1>Respaldo de tus datos</h1></div>
+        <div class="card">
+          <h2>Copia de seguridad</h2>
+          <p class="sub" style="margin-bottom:12px">El sistema guarda solo una copia cada día (las últimas 7). Además puedes descargar ahora una copia con todas tus citas, clientes, gastos y servicios, y guardarla en tu computadora o en Google Drive.</p>
+          <div class="solo-admin"><button class="btn" id="bRespaldo">Descargar respaldo ahora</button> <span class="sub" id="rEstado" role="status"></span></div>
+          <p class="sub" style="font-size:13px;margin-top:12px">Las fotos que subes están guardadas aparte en el disco del sistema y no van dentro de este archivo.</p>
         </div>
       </section>
 

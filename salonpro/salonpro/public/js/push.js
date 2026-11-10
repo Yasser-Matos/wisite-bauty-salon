@@ -1,6 +1,6 @@
 // =====================================================
 // push.js  ->  AVISOS EN EL CELULAR DEL CLIENTE (parte del navegador)
-// Lo usan index.html (justo después de reservar) y cita.html ("Mi cita").
+// Lo usan reservar.html (justo después de reservar) y cita.html ("Mi cita").
 // Hace tres cosas: registra la mini-app (sw.js), pide permiso para notificar
 // y le manda al servidor la "dirección" del celular de este cliente para su cita.
 // Si el servidor no tiene los avisos activos, no se muestra ningún botón.

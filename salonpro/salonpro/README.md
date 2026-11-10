@@ -152,3 +152,26 @@ Arriba de la página de reservas y de "Mi cita" sale un aviso **"Instala la app 
 - Si la página ya está instalada, el aviso no sale. Si el cliente lo cierra con la ✕, no vuelve en 7 días.
 - **Textos:** edita `PASOS` en `instalar.js` y el texto del aviso en `index.html` y `cita.html`. **Colores/estilo:** `.instalar` en `style.css`.
 - **Nombre e ícono que se ven en el celular:** `name` y `short_name` en `public/manifest.json` (y `apple-mobile-web-app-title` en `index.html` y `cita.html`); las imágenes están en `public/icons/` (192, 512 y maskable 512).
+
+## 11. Novedades (versión completa)
+
+**Página de inicio** (`public/index.html`): promociones, servicios, galería de trabajos, equipo, reseñas, ubicación y botón "Agendar cita". Tus datos (dirección, teléfono, WhatsApp, Instagram, horario) se editan en `public/js/negocio.js`; lo que dejes vacío o entre [corchetes] no se muestra.
+
+**Panel nuevo:**
+- **Fotos**: sube varias a la vez; se reducen solas. Se guardan en `/data/fotos` (el Volume), así no se pierden al actualizar.
+- **Promociones**: crea, oculta o borra combos y ofertas.
+- **Reseñas**: la clienta la escribe desde "Mi cita" cuando su cita está completada; tú decides cuáles publicar.
+- **Respaldo**: descarga una copia de la base de datos. Además se guarda una copia automática diaria (últimas 7) en `/data/respaldos`.
+- **Servicios con duración**: cada servicio bloquea su tiempo en la agenda (uñas acrílicas 120 min, etc.). En bases de datos ya existentes todos empiezan en 60 min: ajústalos en Servicios.
+
+**Clienta (Mi cita):** puede cambiar fecha/hora o cancelar hasta X horas antes (`HORAS_ANTES_CANCELAR`, por defecto 2).
+
+**Recordatorios:** el día anterior, después de las `RECORDATORIO_HORA` (por defecto 17), se envía una notificación push a quien activó avisos. Para el resto, en Citas hay un botón "Recordar" que abre WhatsApp.
+
+**Variables nuevas (Railway → Variables):** `RECORDATORIO_HORA`, `HORAS_ANTES_CANCELAR`, `UPLOADS_DIR`, `BACKUP_DIR` (todas opcionales).
+
+**Seguridad:** bloqueo de 15 min tras 5 intentos fallidos de login, límite de reservas por hora por IP, solo el administrador puede modificar datos.
+
+**Dominio propio:** Railway → Settings → Networking → Custom Domain, y en tu proveedor de dominio crea el registro CNAME que Railway indica.
+
+**Google:** crea tu perfil en business.google.com con la misma dirección y teléfono; la página ya incluye datos estructurados, `robots.txt` y `sitemap.xml`.

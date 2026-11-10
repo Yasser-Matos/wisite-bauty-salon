@@ -47,7 +47,7 @@ function endpointPermitido(texto) {
 
 const conLimite = (promesa, ms) => Promise.race([promesa, new Promise((_, rej) => setTimeout(() => rej(new Error('tiempo agotado')), ms))]);
 
-// Envía el aviso de una cita. estado = 'confirmada' | 'cancelada'.
+// Envía el aviso de una cita. estado = 'confirmada' | 'cancelada' | 'recordatorio' (el de un día antes).
 // Devuelve { enviados, total } (total = celulares suscritos a esa cita), o null si los avisos no están activos.
 // NUNCA lanza error: si falla un envío, solo se registra en la consola.
 async function avisarCita(citaId, estado) {
@@ -60,9 +60,13 @@ async function avisarCita(citaId, estado) {
     const subs = db.prepare('SELECT id, data FROM push_subs WHERE appointment_id = ?').all(citaId);
 
     const detalle = `${c.servicio} con ${c.barbero} · ${fechaBonita(c.date)}, ${hora12(c.time)}`;
-    const payload = JSON.stringify(estado === 'confirmada'
-      ? { titulo: '✅ ¡Tu cita fue confirmada!', cuerpo: detalle + '. ¡Te esperamos!', url: `/cita.html?id=${c.id}&t=${c.token}`, tag: 'cita-' + c.id }
-      : { titulo: '❌ Tu cita fue cancelada', cuerpo: detalle + '. Puedes reservar otra cuando quieras.', url: '/', tag: 'cita-' + c.id });
+    const enlace = `/cita.html?id=${c.id}&t=${c.token}`;
+    const avisos = {
+      confirmada: { titulo: '✅ ¡Tu cita fue confirmada!', cuerpo: detalle + '. ¡Te esperamos!', url: enlace },
+      recordatorio: { titulo: '⏰ Mañana tienes tu cita', cuerpo: detalle + '. ¡Te esperamos!', url: enlace },
+      cancelada: { titulo: '❌ Tu cita fue cancelada', cuerpo: detalle + '. Puedes reservar otra cuando quieras.', url: '/reservar.html' },
+    };
+    const payload = JSON.stringify({ ...(avisos[estado] || avisos.cancelada), tag: 'cita-' + c.id });
 
     let enviados = 0;
     await Promise.all(subs.map(async (s) => {
